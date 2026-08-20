@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 import { ApiError } from '@/api/client';
 import { fetchMe, updatePassword } from '@/api/portal';
 import { Card } from '@/components/Card';
+import { PageHeader } from '@/components/PageHeader';
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import type { StudentProfile } from '@/types/portal';
@@ -86,7 +87,9 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <View style={styles.flex}>
+      <PageHeader title="Profilo" icon="👤" />
+      <ScrollView contentContainerStyle={styles.container}>
       {loadingProfile && !profile ? <ActivityIndicator style={styles.spacingTop} /> : null}
       {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
 
@@ -136,11 +139,13 @@ export default function ProfileScreen() {
       <Pressable style={styles.logoutButton} onPress={handleLogout} disabled={loggingOut}>
         {loggingOut ? <ActivityIndicator color={colors.error} /> : <Text style={styles.logoutText}>Esci</Text>}
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: { padding: 16, gap: 16, flexGrow: 1 },
   spacingTop: { marginTop: 24 },
   error: { color: colors.error, fontSize: 13, textAlign: 'center' },

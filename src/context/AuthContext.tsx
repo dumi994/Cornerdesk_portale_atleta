@@ -1,6 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 
-import { buildHostFromSlug, clearSession, loadSession, normalizeCustomHost, saveSession, type StoredSession } from '@/api/client';
+import {
+  buildHostFromSlug,
+  clearSession,
+  loadLastTenant,
+  loadSession,
+  normalizeCustomHost,
+  saveLastTenant,
+  saveSession,
+  type StoredSession,
+} from '@/api/client';
 import * as portalApi from '@/api/portal';
 import type { StudentSummary } from '@/types/portal';
 
@@ -11,6 +20,8 @@ interface AuthContextValue {
   host: string | null;
   token: string | null;
   student: StudentSummary | null;
+  /** Nome palestra ricordato dopo il primo login (ADR §9.1) — per l'header della dashboard. */
+  tenantName: string | null;
   loginWithSlug: (slug: string, email: string, password: string) => Promise<void>;
   loginWithCustomHost: (host: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -23,9 +34,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [host, setHost] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [student, setStudent] = useState<StudentSummary | null>(null);
+  const [tenantName, setTenantName] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
+      const tenant = await loadLastTenant();
+      if (tenant) setTenantName(tenant.displayName);
+
       const session = await loadSession();
       if (!session) {
         setStatus('signedOut');
@@ -47,23 +62,32 @@ export function AuthProvider({ children }: PropsWithChildren) {
     })();
   }, []);
 
-  const completeLogin = useCallback(async (resolvedHost: string, email: string, password: string) => {
-    const response = await portalApi.login(resolvedHost, email, password, 'App mobile');
-    const session: StoredSession = { host: resolvedHost, token: response.token, student: response.student };
-    await saveSession(session);
-    setHost(session.host);
-    setToken(session.token);
-    setStudent(session.student);
-    setStatus('signedIn');
-  }, []);
+  const completeLogin = useCallback(
+    async (resolvedHost: string, displayName: string, isCustomHost: boolean, email: string, password: string) => {
+      const response = await portalApi.login(resolvedHost, email, password, 'App mobile');
+      const session: StoredSession = { host: resolvedHost, token: response.token, student: response.student };
+      await saveSession(session);
+      // Ricordata anche fuori dalla sessione (ADR §9.1): sopravvive al logout,
+      // così ai login successivi si chiedono solo email/password.
+      await saveLastTenant({ displayName, host: resolvedHost, isCustomHost });
+      setHost(session.host);
+      setToken(session.token);
+      setStudent(session.student);
+      setTenantName(displayName);
+      setStatus('signedIn');
+    },
+    []
+  );
 
   const loginWithSlug = useCallback(
-    (slug: string, email: string, password: string) => completeLogin(buildHostFromSlug(slug), email, password),
+    (slug: string, email: string, password: string) =>
+      completeLogin(buildHostFromSlug(slug), slug.trim(), false, email, password),
     [completeLogin]
   );
 
   const loginWithCustomHost = useCallback(
-    (customHost: string, email: string, password: string) => completeLogin(normalizeCustomHost(customHost), email, password),
+    (customHost: string, email: string, password: string) =>
+      completeLogin(normalizeCustomHost(customHost), customHost.trim(), true, email, password),
     [completeLogin]
   );
 
@@ -85,8 +109,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [host, token]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, host, token, student, loginWithSlug, loginWithCustomHost, logout }),
-    [status, host, token, student, loginWithSlug, loginWithCustomHost, logout]
+    () => ({ status, host, token, student, tenantName, loginWithSlug, loginWithCustomHost, logout }),
+    [status, host, token, student, tenantName, loginWithSlug, loginWithCustomHost, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

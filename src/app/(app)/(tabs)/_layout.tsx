@@ -12,7 +12,7 @@ export default function TabsLayout() {
   const { unreadCount } = useNotifications();
 
   return (
-    <Tabs screenOptions={{ headerTitleAlign: 'center' }}>
+    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: colors.primary }}>
       <Tabs.Screen
         name="dashboard"
         options={{
