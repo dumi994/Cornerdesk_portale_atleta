@@ -45,6 +45,12 @@
         "projectId": "734a06d6-efb1-4d3b-a725-6f31cfd41adb"
       }
     },
-    "owner": "dumi9c"
+    "owner": "dumi9c",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/734a06d6-efb1-4d3b-a725-6f31cfd41adb"
+    }
   }
 }
