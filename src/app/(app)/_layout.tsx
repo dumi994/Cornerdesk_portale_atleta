@@ -1,9 +1,9 @@
-import { Redirect } from 'expo-router';
+import { Redirect, Slot } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
 
-export default function Index() {
+export default function AppGroupLayout() {
   const { status } = useAuth();
 
   if (status === 'loading') {
@@ -14,5 +14,9 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={status === 'signedIn' ? '/dashboard' : '/login'} />;
+  if (status === 'signedOut') {
+    return <Redirect href="/login" />;
+  }
+
+  return <Slot />;
 }
