@@ -7,7 +7,14 @@
     "icon": "./assets/images/icon.png",
     "scheme": "portaleatleta",
     "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "it.cornerdesk.portaleatleta",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "android": {
+      "package": "it.cornerdesk.portaleatleta",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -29,6 +36,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "734a06d6-efb1-4d3b-a725-6f31cfd41adb"
+      }
+    },
+    "owner": "dumi9c"
   }
 }
