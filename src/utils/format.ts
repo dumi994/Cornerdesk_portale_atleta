@@ -36,11 +36,3 @@ export function daysUntil(isoDate: string | null): number | null {
   now.setHours(0, 0, 0, 0);
   return Math.round((target.getTime() - now.getTime()) / 86_400_000);
 }
-
-const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  medical_certificate: 'Certificato medico',
-};
-
-export function documentTypeLabel(type: string): string {
-  return DOCUMENT_TYPE_LABELS[type] ?? type.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
-}

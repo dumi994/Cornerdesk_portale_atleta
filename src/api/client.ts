@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { StudentSummary } from '@/types/portal';
 
 const SESSION_KEY = 'portal_session';
+const LAST_TENANT_KEY = 'portal_last_tenant';
 const DEFAULT_DOMAIN = 'cornerdesk.it';
 
 export interface StoredSession {
@@ -10,6 +11,18 @@ export interface StoredSession {
   host: string;
   token: string;
   student: StudentSummary;
+}
+
+/**
+ * Nome palestra ricordato dopo il primo login riuscito (ADR §9.1) — separato
+ * dalla sessione: sopravvive al logout, si cancella solo con "Non è la tua
+ * palestra?" nella schermata di login.
+ */
+export interface LastTenant {
+  /** Quello che l'atleta ha digitato (es. "judoclubroma"), da mostrare in UI. */
+  displayName: string;
+  host: string;
+  isCustomHost: boolean;
 }
 
 export class ApiError extends Error {
@@ -55,6 +68,24 @@ export async function clearSession(): Promise<void> {
   await SecureStore.deleteItemAsync(SESSION_KEY);
 }
 
+export async function saveLastTenant(tenant: LastTenant): Promise<void> {
+  await SecureStore.setItemAsync(LAST_TENANT_KEY, JSON.stringify(tenant));
+}
+
+export async function loadLastTenant(): Promise<LastTenant | null> {
+  const raw = await SecureStore.getItemAsync(LAST_TENANT_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as LastTenant;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearLastTenant(): Promise<void> {
+  await SecureStore.deleteItemAsync(LAST_TENANT_KEY);
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST';
   body?: Record<string, unknown>;
@@ -89,7 +120,7 @@ export async function apiFetch<T>(host: string, path: string, options: RequestOp
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
   } catch {
-    throw new ApiError(0, "Impossibile raggiungere il server. Controlla la connessione o l'indirizzo della palestra.");
+    throw new ApiError(0, 'Palestra non trovata o connessione assente. Verifica il nome della palestra e la connessione.');
   }
 
   const isJson = response.headers.get('content-type')?.includes('application/json') ?? false;

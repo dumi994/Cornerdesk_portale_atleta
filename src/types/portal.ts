@@ -54,6 +54,8 @@ export interface StudentDocument {
   type: string;
   issued_at: string | null;
   expires_at: string | null;
+  /** Path relativo al dominio del tenant, come receipts[].url (ADR §11.6). */
+  url: string;
 }
 
 export type MatchOutcome = 'win' | 'loss' | 'draw';

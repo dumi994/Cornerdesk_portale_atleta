@@ -1,4 +1,5 @@
-import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { colors } from '@/constants/colors';
 
@@ -12,10 +13,11 @@ interface Props {
 }
 
 /**
- * L'API non ha un host globale: ogni palestra è un sottodominio
- * (ADR §9.1). Il campo "avanzato" serve a puntare a un host completo
- * (es. un backend locale in sviluppo), utile perché l'API non è mai
- * stata provata end-to-end contro un DB reale (ADR §9.6).
+ * L'API non ha un host globale: ogni palestra è un sottodominio (ADR §9.1).
+ * Il campo mostrato all'atleta è "Nome palestra", senza mai mostrare
+ * ".cornerdesk.it" — l'app lo aggiunge internamente. L'opzione "indirizzo
+ * personalizzato" (per puntare a un backend locale in sviluppo) resta
+ * accessibile ma discreta, non è nella UI descritta in ADR §11.2.
  */
 export function TenantHostFields({
   useCustomHost,
@@ -25,22 +27,21 @@ export function TenantHostFields({
   customHost,
   onCustomHostChange,
 }: Props) {
+  const [showAdvanced, setShowAdvanced] = useState(useCustomHost);
+
   return (
     <>
       {!useCustomHost ? (
         <View style={styles.field}>
-          <Text style={styles.label}>Sottodominio palestra</Text>
-          <View style={styles.slugRow}>
-            <TextInput
-              style={[styles.input, styles.slugInput]}
-              placeholder="es. fightgym"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={slug}
-              onChangeText={onSlugChange}
-            />
-            <Text style={styles.slugSuffix}>.cornerdesk.it</Text>
-          </View>
+          <Text style={styles.label}>Nome palestra</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="es. judoclubroma"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={slug}
+            onChangeText={onSlugChange}
+          />
         </View>
       ) : (
         <View style={styles.field}>
@@ -57,10 +58,25 @@ export function TenantHostFields({
         </View>
       )}
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Usa un indirizzo personalizzato</Text>
-        <Switch value={useCustomHost} onValueChange={onUseCustomHostChange} />
-      </View>
+      {!showAdvanced ? (
+        <Pressable
+          onPress={() => {
+            setShowAdvanced(true);
+          }}
+        >
+          <Text style={styles.advancedLink}>Sviluppatore: usa indirizzo personalizzato</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={() => {
+            onUseCustomHostChange(!useCustomHost);
+          }}
+        >
+          <Text style={styles.advancedLink}>
+            {useCustomHost ? 'Usa invece il nome palestra' : 'Usa invece un indirizzo personalizzato'}
+          </Text>
+        </Pressable>
+      )}
     </>
   );
 }
@@ -76,9 +92,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
   },
-  slugRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  slugInput: { flex: 1 },
-  slugSuffix: { fontSize: 14, color: colors.textMuted },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
-  switchLabel: { fontSize: 13, color: colors.textMuted },
+  advancedLink: { fontSize: 12, color: colors.textMuted, textAlign: 'center', marginTop: 2 },
 });

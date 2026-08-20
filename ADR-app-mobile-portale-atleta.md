@@ -1,10 +1,9 @@
 # ADR — App Nativa iOS/Android per il Portale Atleta
 
 > **Progetto:** Corner Desk — Portale Atleta
-> **Versione:** 1.3
+> **Versione:** 1.5
 > **Data:** 2026-08-20
-> **Stato:** 🟢 App costruita (Expo Router + TypeScript) — non ancora verificata end-to-end contro un
-> backend/DB reale, vedi changelog v1.2 → v1.3 e `.specs/plans/feature-app-mobile-portale-atleta.md`
+> **Stato:** 🟢 In sviluppo — API completata, app React Native da costruire (progetto extra/corso)
 > **Autore:** Claude (AI Assistant), su richiesta
 
 > **Nota:** `ADR.md` v3.1, sezione "Cosa NON è in Scope", elenca **"App mobile nativa (solo PWA
@@ -24,12 +23,23 @@
 > iOS **senza passare dagli store** — vedi nuova [§10](#10-distribuzione-senza-store) per i vincoli
 > reali (soprattutto su iOS, dove non è una scelta tecnica ma un limite imposto da Apple).
 >
-> **Changelog v1.2 → v1.3**: l'app è stata costruita (Expo Router + TypeScript, `expo-secure-store`
-> per il token, `react-native-svg` per il grafico andamento gare) — login con risoluzione tenant,
-> dashboard, calendario gare, centro notifiche con badge, profilo/cambio password/logout. Verificata
-> con `tsc --noEmit` e bundling (`expo export`) ad ogni feature, **non** con un login reale (nessun
-> backend/DB raggiungibile in questo ambiente di sviluppo, stesso limite già segnalato in §9.6 per
-> l'API). Dettagli in `README.md` e `.specs/plans/feature-app-mobile-portale-atleta.md`.
+> **Changelog v1.2 → v1.3**: aggiunta [§11](#11-ui-di-riferimento--cosa-replicare-dal-portale-web),
+> sintesi di schermate/sezioni/colori del portale web da replicare come componenti nativi (non
+> screenshot reali — nessun ambiente con DB raggiungibile per fare login e catturarli, estratto
+> leggendo `resources/views/portal/*.blade.php`). Corretto anche un gap trovato nel farlo: l'endpoint
+> `/dashboard` non esponeva l'URL dei documenti (solo delle ricevute) — ora lo espone.
+>
+> **Changelog v1.3 → v1.4**: pubblicato un mockup visivo (Login/Dashboard/Calendario Gare, dati finti,
+> palette reale) a supporto di §11 — link in cima alla sezione.
+>
+> **Changelog v1.4 → v1.5** (correzioni da review utente sul mockup): (1) aggiunto in §9.1/§11.2 il
+> campo "Nome palestra" nel login — gap reale, non solo visivo: senza saperlo l'app non può risolvere
+> quale tenant/API contattare, cosa che sul web è implicita nell'URL del browser; (2) sostituito in
+> §11.3/§11.4 il dropdown utente + bottone flottante refresh con una **tab bar in basso** (4 tab:
+> Home/Gare/Notifiche/Profilo), pattern nativo mobile invece del pattern desktop del web; (3) aggiunta
+> nota esplicita sulla **safe area** (notch/home indicator) — sempre `react-native-safe-area-context`,
+> mai padding fisso hardcoded; (4) corretta una frase non più valida su `document.url` (era già stato
+> aggiunto in v1.3, il testo diceva ancora "non esposto"). Mockup ripubblicato di conseguenza.
 
 ---
 
@@ -248,6 +258,24 @@ Ogni palestra (tenant) ha il proprio sottodominio — l'app deve puntare a
 uno). Non esiste un endpoint "globale" unico: il tenant si risolve dall'host della richiesta, esattamente
 come per il sito web. In sviluppo locale, dal dominio/porta configurato in `.env`.
 
+**Implicazione per l'app (non ovvia, va gestita in UI)**: sul web questo è trasparente (l'atleta apre
+`nomepalestra.cornerdesk.it` dal browser). Un'app mobile non ha una barra indirizzi — **deve chiedere
+il nome della palestra prima ancora del login**, altrimenti non sa quale API contattare. Requisiti:
+
+- Un campo nella schermata di login (prima di email/password), etichettato **"Nome palestra"** — mai
+  "sottodominio", non è un termine che un atleta deve conoscere.
+- **Non mostrare `.cornerdesk.it` nel campo**: l'utente digita solo il nome (es. `judoclubroma`), l'app
+  costruisce internamente `https://judoclubroma.cornerdesk.it`. Se il valore digitato non corrisponde a
+  un tenant esistente, il login fallirà (dominio non risolto / tenant non trovato) — l'app deve gestire
+  quel caso con un messaggio chiaro ("Palestra non trovata, verifica il nome"), non un errore di rete
+  generico.
+- **Persistere il valore localmente** (es. `AsyncStorage`) dopo il primo login riuscito, così l'atleta
+  non lo ridigita ogni volta — solo email/password vanno richieste ai login successivi, con un link
+  tipo "Non è la tua palestra?" per cambiarla.
+- Nessun endpoint oggi fa da "elenco palestre" o "trova la mia palestra per nome" — l'atleta deve sapere
+  il nome esatto (comunicato dalla propria palestra, stesso principio già usato per l'URL del sito web).
+  Se in futuro serve una ricerca assistita, è una feature nuova, non presente nell'API attuale.
+
 ### 9.2 Autenticazione
 
 Token Bearer (Laravel Sanctum), non sessione/cookie. Flusso:
@@ -287,7 +315,7 @@ token dell'atleta, vedi 9.3).
   "memberships": [{ "id": 1, "month": 8, "year": 2026, "amount_paid": 49.0, "paid_at": "2026-08-03" }],
   "receipts": [{ "id": 1, "amount": 49.0, "payment_method": "Contanti", "month": 8, "year": 2026, "sent_at": "2026-08-03", "url": "/tenancy/assets/..." }],
   "extra_payments": [{ "id": 1, "amount": 20.0, "note": "Kimono", "payment_method": "POS", "paid_at": "2026-08-10" }],
-  "documents": { "medical_certificate": { "id": 1, "type": "medical_certificate", "issued_at": "2026-01-10", "expires_at": "2027-01-10" } },
+  "documents": { "medical_certificate": { "id": 1, "type": "medical_certificate", "issued_at": "2026-01-10", "expires_at": "2027-01-10", "url": "/tenancy/assets/..." } },
   "match_chart_data": { "judo": { "label": "Judo", "total": 5, "wins": 3, "losses": 2, "win_rate": 60.0, "series": [...], "trend": [...] } },
   "student_courses": [{ "id": 3, "title": "Judo Adulti" }],
   "upcoming_competitions": [{ "id": 7, "name": "Trofeo Regionale", "event_date": "2026-09-15", "location": "Palestra Comunale" }]
@@ -360,3 +388,130 @@ un secondo momento serve un'icona/nome proprio su iOS, è necessario uno degli a
 della tabella — e comportano comunque o un account Apple a pagamento o una scadenza di 7 giorni: non
 esiste una quinta via che eviti del tutto Apple su iOS, è un limite della piattaforma, non
 un'omissione di questo documento.
+
+---
+
+## 11. UI di riferimento — cosa replicare dal portale web
+
+Il portale web (`resources/views/portal/*.blade.php`) è Blade/Bootstrap — non riusabile direttamente
+in React Native (niente webview: l'app deve avere componenti nativi propri), ma la sua struttura
+**va replicata come contenuto e gerarchia**, non reinventata. Estratto qui perché leggere il markup
+Blade non è pratico per chi sviluppa l'app — screenshot reali della UI loggata non sono disponibili
+in questo momento (nessun ambiente con DB raggiungibile per fare login e catturarli, stesso limite di
+§9.6); questa sezione è la sintesi testuale al loro posto.
+
+> **Mockup visivo**: https://claude.ai/code/artifact/31ff2124-8bd9-44d6-aa6e-b46964da2f5c — le 3
+> schermate sotto (Login, Dashboard, Calendario Gare) con dati finti, palette e sezioni reali. È solo
+> riferimento visivo (etichettato come tale su ogni schermata) — da ricostruire come componenti nativi
+> RN, non un prototipo da portare via WebView.
+
+### 11.1 Palette e stile generale
+
+| Token                      | Valore                                                                                  | Uso                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Blu navy scuro (gradiente) | `linear-gradient(135deg, #1a1a2e, #15215a)`                                             | Header pagina, header di ogni card-sezione, header modali                                                           |
+| Rosso brand                | `#dc3545`                                                                               | Accento principale (barrette laterali sezioni, icone gare/documenti, spinner login) — stesso rosso del manifest PWA |
+| Verde                      | `#22c55e`                                                                               | Avatar utente (iniziali), accento sezione "Storico pagamenti"                                                       |
+| Viola                      | `#6f42c1`                                                                               | Accento sezione "Le mie gare", icona login, bottone refresh flottante                                               |
+| Card                       | Bianco, `border-radius: 20px`, ombra soffusa `0 4px 20px rgba(0,0,0,.08)`, nessun bordo | Contenitore standard di ogni sezione                                                                                |
+| Font                       | `'Segoe UI', Arial, sans-serif`                                                         | —                                                                                                                   |
+| Layout                     | Colonna singola, larghezza massima ~760px, già mobile-first                             | Riflettere in RN come schermata verticale scrollabile, non un layout a griglia desktop                              |
+
+Pattern ricorrente in più sezioni: riga-elemento con icona colorata a sinistra, testo (titolo +
+sottotitolo grigio piccolo) al centro, dettaglio/icona a destra — usato per gare, pagamenti, ricevute.
+In RN è un unico componente lista riutilizzabile, non tre implementazioni separate.
+
+### 11.2 Schermata: Login (`portal.login`) — DIVERGE dal web, vedi §9.1
+
+Il web non ha questo problema (l'URL del browser identifica già il tenant); l'app sì. **Aggiunto un
+campo che il portale web non ha**: "Nome palestra", sopra Email — obbligatorio, senza suffisso
+`.cornerdesk.it` visibile (§9.1). Solo al primo accesso: una volta salvato con successo, i login
+successivi mostrano solo Email/Password con un link discreto "Non è la tua palestra?" per cambiarla.
+
+Per il resto, stessa struttura del web: card centrata su sfondo scuro, dall'alto icona cerchio viola
+chiaro, nome palestra (`site_name` dal tenant, valorizzato **dopo** che l'app conosce il tenant) +
+sottotitolo "Portale Atleta", campo Email, campo Password, checkbox "Ricordami" + link "Password
+dimenticata?", bottone pieno nero "Accedi", footer piccolo "Problemi di accesso? Contatta la
+segreteria." → endpoint: `POST /api/portal/login` (§9.3).
+
+### 11.3 Schermata: Dashboard (`portal.dashboard`) — la schermata principale
+
+**Header** (sfondo blu navy): nome palestra piccolo maiuscolo + "Ciao, {nome atleta}" grande. A destra:
+campanella notifiche (badge conteggio non lette) + menu utente (avatar cerchio verde con iniziali) →
+dropdown con "Impostazioni profilo", "Cambia password", "Attiva notifiche push" (solo se il piano ha
+push), "Installa app", "Esci".
+
+Sotto, in sequenza verticale, 4 card-sezione (ognuna: header scuro con titolo + barretta colorata,
+corpo bianco):
+
+1. **I tuoi documenti** (accento rosso) — selettore anno in alto a destra nell'header; corpo: badge/pill
+   cliccabili per tipo di documento presente quell'anno, ognuno con icona e colore propri: Certificato
+   Medico (ciano), Autorizzazione Genitoriale (giallo), Modulo Iscrizione (verde), Liberatoria (rosso),
+   Scheda Anamnestica (grigio). Vuoto → messaggio "Nessun documento caricato per il {anno}."
+   → dati da `dashboard.documents` (§9.4), apertura file da `document.url` (esposto, vedi §11.6).
+2. **Prossime gare** (accento rosso) — lista fino a 3 righe (nome gara + data + luogo), link "Vedi
+   tutte" → schermata Calendario Gare (§11.4). Vuoto → "Nessuna gara in programma al momento."
+   → dati da `dashboard.upcoming_competitions`.
+3. **Le mie gare** (accento viola, sezione condizionale — solo se l'atleta ha risultati) — selettore
+   disciplina se più di una; 4 KPI a riquadro colorato (Totale/grigio, Vittorie/verde, Sconfitte/rosso,
+   Win-rate/blu) più un grafico a linea dell'andamento cumulativo (vittoria +1/sconfitta -1/pareggio 0)
+   → dati da `dashboard.match_chart_data` (già include `series`/`trend` pronti per un grafico, §9.4).
+4. **Storico pagamenti** (accento verde) — selettore anno; lista pagamenti del mese con importo e
+   metodo; badge violetto se il mese ha anche una ricevuta associata (apre modale ricevuta)
+   → dati da `dashboard.memberships` + `dashboard.receipts`.
+
+**Ricevute**: dettaglio/download di una singola ricevuta, aperta dalla riga corrispondente nello
+Storico pagamenti.
+
+**Navigazione: tab bar in basso, non dropdown/modali** — sul web "Impostazioni profilo", "Cambia
+password" e "Esci" sono voci di un dropdown desktop; su mobile diventano una **tab bar fissa in fondo
+allo schermo**, 4 voci, pattern nativo standard (React Navigation Bottom Tabs o equivalente):
+
+| Tab       | Icona                        | Schermata / endpoint                                                                                                                            |
+| --------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Home      | casa                         | Dashboard (§11.3, questa schermata)                                                                                                             |
+| Gare      | trofeo                       | Calendario Gare (§11.4) — `GET /api/portal/competitions`                                                                                        |
+| Notifiche | campanella (badge non lette) | Lista notifiche — `GET /api/portal/notifications` (sul web è un dropdown nell'header; su mobile una schermata propria è più naturale)           |
+| Profilo   | utente                       | Dati profilo (`GET /api/portal/me`) + azioni "Cambia password" e "Esci" — sul web erano nel dropdown utente, qui diventano la schermata Profilo |
+
+Il **bottone flottante refresh** del web (cerchio viola in basso a destra) va **rimosso**, non
+replicato: occuperebbe lo stesso spazio della tab bar. Il refresh in RN è un pull-to-refresh nativo
+sulle liste (già la sostituzione corretta, non un'aggiunta).
+
+**Safe area**: sia l'header in alto sia la tab bar in basso devono rispettare le aree di sistema dei
+device reali (notch/Dynamic Island in alto, home indicator/gesture bar in basso su iOS, barra di
+navigazione su Android) — con `react-native-safe-area-context` (`SafeAreaView` o l'hook
+`useSafeAreaInsets()`), **mai un padding fisso hardcoded**: l'inset cambia da device a device (varia
+già solo tra iPhone con/senza notch) e cambia se l'utente ruota lo schermo o l'OS aggiorna la UI di
+sistema.
+
+### 11.4 Schermata: Calendario Gare (`portal.competitions`)
+
+Header con titolo "Gare" (icona trofeo rosso) + stessa campanella notifiche. Il link web "← Torna alla
+dashboard" **non serve replicarlo**: con la tab bar (§11.3) tornare alla dashboard è già un tap sulla
+tab Home, un secondo link ridondante non aggiunge nulla su mobile. Sotto: navigazione mese (freccia
+sinistra / etichetta mese-anno / freccia destra — tutte le gare del tenant nel mese, non filtrate per
+l'atleta). Lista card gara (icona trofeo rosso su sfondo rosso chiaro, nome + data + luogo). Vuoto →
+stato vuoto con icona trofeo sbiadita e messaggio. Stessa tab bar di §11.3 in fondo (tab "Gare" attiva).
+→ endpoint `GET /api/portal/competitions?month=&year=` (§9.3), navigazione mese = richiamare lo stesso
+endpoint con `month`/`year` diversi (nessuna paginazione lato server, un mese alla volta).
+
+### 11.5 Cosa NON serve replicare 1:1
+
+- Il loader globale a schermo intero in login/dashboard (`fg-global-loader`) è un accorgimento per il
+  rendering server-side lento del Blade — in RN la navigazione è già istantanea, non serve equivalente.
+- Il pulsante "Installa app"/PWA non ha senso in un'app già nativa.
+- Le select HTML per anno/disciplina diventano naturalmente picker/dropdown nativi RN, non serve
+  replicare il markup, solo il comportamento (filtro per anno → richiama l'endpoint con `?year=`).
+- Il **dropdown utente** e il **bottone flottante refresh** del web diventano, rispettivamente, la tab
+  "Profilo" e il pull-to-refresh nativo — vedi §11.3. Non vanno aggiunti IN PIÙ alla tab bar, la
+  sostituiscono.
+
+### 11.6 Un gap trovato (e corretto) scrivendo questa sezione
+
+Il portale web apre i documenti/ricevute con un URL diretto al file (`tenant_storage_url($doc->file_path)`
+per i documenti, `$receipt->url` per le ricevute). L'endpoint `/dashboard` (§9.4) esponeva già `url` per
+le ricevute ma non per i documenti — l'oggetto in `documents{}` aveva solo i metadati (tipo, date), non
+il path del file. **Corretto**: `PortalApiController::dashboard()` ora include `url` anche per i
+documenti (stesso accessor `getUrlAttribute()` già presente su `StudentDocument`, non serviva nuovo
+codice). L'esempio JSON in §9.4 riflette la versione aggiornata.

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { PageHeader } from '@/components/PageHeader';
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationsContext';
@@ -25,43 +26,48 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
-    >
-      {items.length === 0 && !loading ? (
-        <Text style={styles.muted}>Nessuna notifica al momento.</Text>
-      ) : (
-        items.map((item) => {
-          const isUnread = !item.read_at;
-          const isExpanded = expandedId === item.id;
-          return (
-            <Pressable key={item.id} style={[styles.card, isUnread && styles.cardUnread]} onPress={() => handlePress(item)}>
-              <View style={styles.headerRow}>
-                {isUnread && <View style={styles.dot} />}
-                <Text style={styles.title}>{item.title}</Text>
-              </View>
-              <Text style={styles.meta}>
-                {item.sender ? `${item.sender} · ` : ''}
-                {item.created_at_human}
-              </Text>
-              <Text style={styles.body} numberOfLines={isExpanded ? undefined : 2}>
-                {isExpanded ? item.body : item.excerpt}
-              </Text>
-              {isExpanded && item.action_url && (
-                <Pressable style={styles.actionButton} onPress={() => handleOpenAction(item)}>
-                  <Text style={styles.actionText}>{item.action_label ?? 'Apri'}</Text>
-                </Pressable>
-              )}
-            </Pressable>
-          );
-        })
-      )}
-    </ScrollView>
+    <View style={styles.flex}>
+      <PageHeader title="Notifiche" icon="🔔" showBell={false} />
+
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
+      >
+        {items.length === 0 && !loading ? (
+          <Text style={styles.muted}>Nessuna notifica al momento.</Text>
+        ) : (
+          items.map((item) => {
+            const isUnread = !item.read_at;
+            const isExpanded = expandedId === item.id;
+            return (
+              <Pressable key={item.id} style={[styles.card, isUnread && styles.cardUnread]} onPress={() => handlePress(item)}>
+                <View style={styles.headerRow}>
+                  {isUnread && <View style={styles.dot} />}
+                  <Text style={styles.title}>{item.title}</Text>
+                </View>
+                <Text style={styles.meta}>
+                  {item.sender ? `${item.sender} · ` : ''}
+                  {item.created_at_human}
+                </Text>
+                <Text style={styles.body} numberOfLines={isExpanded ? undefined : 2}>
+                  {isExpanded ? item.body : item.excerpt}
+                </Text>
+                {isExpanded && item.action_url && (
+                  <Pressable style={styles.actionButton} onPress={() => handleOpenAction(item)}>
+                    <Text style={styles.actionText}>{item.action_label ?? 'Apri'}</Text>
+                  </Pressable>
+                )}
+              </Pressable>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: { padding: 16, gap: 10, flexGrow: 1 },
   muted: { color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 24 },
   card: {
