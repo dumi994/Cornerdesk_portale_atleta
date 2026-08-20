@@ -1,9 +1,10 @@
 # ADR — App Nativa iOS/Android per il Portale Atleta
 
 > **Progetto:** Corner Desk — Portale Atleta
-> **Versione:** 1.2
+> **Versione:** 1.3
 > **Data:** 2026-08-20
-> **Stato:** 🟢 In sviluppo — API completata, app React Native da costruire (progetto extra/corso)
+> **Stato:** 🟢 App costruita (Expo Router + TypeScript) — non ancora verificata end-to-end contro un
+> backend/DB reale, vedi changelog v1.2 → v1.3 e `.specs/plans/feature-app-mobile-portale-atleta.md`
 > **Autore:** Claude (AI Assistant), su richiesta
 
 > **Nota:** `ADR.md` v3.1, sezione "Cosa NON è in Scope", elenca **"App mobile nativa (solo PWA
@@ -22,6 +23,13 @@
 > Native/Flutter/altro". Aggiunto requisito esplicito: l'app deve essere installabile su Android e
 > iOS **senza passare dagli store** — vedi nuova [§10](#10-distribuzione-senza-store) per i vincoli
 > reali (soprattutto su iOS, dove non è una scelta tecnica ma un limite imposto da Apple).
+>
+> **Changelog v1.2 → v1.3**: l'app è stata costruita (Expo Router + TypeScript, `expo-secure-store`
+> per il token, `react-native-svg` per il grafico andamento gare) — login con risoluzione tenant,
+> dashboard, calendario gare, centro notifiche con badge, profilo/cambio password/logout. Verificata
+> con `tsc --noEmit` e bundling (`expo export`) ad ogni feature, **non** con un login reale (nessun
+> backend/DB raggiungibile in questo ambiente di sviluppo, stesso limite già segnalato in §9.6 per
+> l'API). Dettagli in `README.md` e `.specs/plans/feature-app-mobile-portale-atleta.md`.
 
 ---
 
