@@ -123,6 +123,8 @@ export interface NotificationItem {
   body: string;
   sender: string | null;
   created_at: string;
+  /** Es. "2 ore fa" — calcolato lato server (Carbon::diffForHumans). */
+  created_at_human: string;
   read_at: string | null;
   action_url: string | null;
   action_label: string | null;

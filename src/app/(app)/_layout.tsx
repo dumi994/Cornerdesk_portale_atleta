@@ -2,6 +2,7 @@ import { Redirect, Slot } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
+import { NotificationsProvider } from '@/context/NotificationsContext';
 
 export default function AppGroupLayout() {
   const { status } = useAuth();
@@ -18,5 +19,9 @@ export default function AppGroupLayout() {
     return <Redirect href="/login" />;
   }
 
-  return <Slot />;
+  return (
+    <NotificationsProvider>
+      <Slot />
+    </NotificationsProvider>
+  );
 }
