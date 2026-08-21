@@ -36,9 +36,12 @@ export interface Receipt {
   payment_method: string;
   month: number;
   year: number;
+  /** ISO8601 con orario (ADR §11.3 punto 4/v1.9) — il modale ricevute mostra data E ora. */
   sent_at: string | null;
   /** Path relativo al dominio del tenant (vedi ADR §9.4) — va prefissato con l'host dell'API. */
   url: string;
+  extra_amount: number | null;
+  extra_note: string | null;
 }
 
 export interface ExtraPayment {

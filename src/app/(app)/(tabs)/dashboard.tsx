@@ -7,11 +7,12 @@ import { fetchDashboard } from '@/api/portal';
 import { KpiTile } from '@/components/KpiTile';
 import { MatchChart } from '@/components/MatchChart';
 import { PageHeader } from '@/components/PageHeader';
+import { PaymentsGrid } from '@/components/PaymentsGrid';
 import { SectionCard } from '@/components/SectionCard';
 import { colors, documentTypeStyle } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
-import type { DashboardData, Receipt } from '@/types/portal';
-import { daysUntil, formatCurrency, formatDate, formatMonthLabel } from '@/utils/format';
+import type { DashboardData } from '@/types/portal';
+import { daysUntil, formatCurrency, formatDate, formatDateTime, formatMonthLabel } from '@/utils/format';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -23,7 +24,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDiscipline, setSelectedDiscipline] = useState<string | null>(null);
-  const [receiptModal, setReceiptModal] = useState<Receipt | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
 
   const load = useCallback(
     async (year: number, { isRefresh = false } = {}) => {
@@ -56,7 +57,7 @@ export default function DashboardScreen() {
   const disciplineEntries = data ? Object.entries(data.match_chart_data) : [];
   const currentDiscipline = selectedDiscipline ? data?.match_chart_data[selectedDiscipline] : undefined;
 
-  const receiptByMonth = new Map((data?.receipts ?? []).map((r) => [r.month, r]));
+  const receiptsForSelectedMonth = selectedMonth !== null ? (data?.receipts ?? []).filter((r) => r.month === selectedMonth) : [];
 
   const avatarInitials = student
     ? `${student.first_name?.[0] ?? ''}${student.last_name?.[0] ?? ''}`.toUpperCase()
@@ -166,7 +167,7 @@ export default function DashboardScreen() {
                   <KpiTile label="Win-rate" value={`${currentDiscipline.win_rate}%`} color={colors.infoBlue} />
                 </View>
 
-                <MatchChart trend={currentDiscipline.trend} />
+                <MatchChart series={currentDiscipline.series} trend={currentDiscipline.trend} />
               </SectionCard>
             )}
 
@@ -177,33 +178,14 @@ export default function DashboardScreen() {
                 <YearSelector year={selectedYear} canPrev={canGoPrev} canNext={canGoNext} onPrev={() => setSelectedYear((y) => y - 1)} onNext={() => setSelectedYear((y) => y + 1)} />
               }
             >
-              {data.memberships.length === 0 ? (
-                <Text style={styles.muted}>Nessuna quota registrata per il {selectedYear}.</Text>
-              ) : (
-                data.memberships.map((m) => {
-                  const receipt = receiptByMonth.get(m.month);
-                  return (
-                    <Pressable
-                      key={m.id}
-                      style={styles.row}
-                      onPress={() => receipt && setReceiptModal(receipt)}
-                      disabled={!receipt}
-                    >
-                      <View style={styles.paymentRowHeader}>
-                        <Text style={styles.rowTitle}>{formatMonthLabel(m.month)}</Text>
-                        {receipt && (
-                          <View style={styles.receiptBadge}>
-                            <Text style={styles.receiptBadgeText}>Ricevuta</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.rowSubtitle}>
-                        {formatCurrency(m.amount_paid)} · pagata il {formatDate(m.paid_at)}
-                      </Text>
-                    </Pressable>
-                  );
-                })
-              )}
+              <PaymentsGrid
+                year={selectedYear}
+                enrollmentYear={data.enrollment_year}
+                enrollmentMonth={data.enrollment_month}
+                memberships={data.memberships}
+                receipts={data.receipts}
+                onSelectMonth={setSelectedMonth}
+              />
 
               {data.extra_payments.length > 0 && (
                 <>
@@ -225,30 +207,47 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={!!receiptModal} transparent animationType="fade" onRequestClose={() => setReceiptModal(null)}>
+      <Modal visible={selectedMonth !== null} transparent animationType="fade" onRequestClose={() => setSelectedMonth(null)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Ricevuta</Text>
-            {receiptModal && (
+            {selectedMonth !== null && (
               <>
-                <Text style={styles.modalDetail}>
-                  {formatMonthLabel(receiptModal.month)} {receiptModal.year} · {formatCurrency(receiptModal.amount)}
+                <Text style={styles.modalTitle}>
+                  {formatMonthLabel(selectedMonth)} {selectedYear}
                 </Text>
-                <Text style={styles.modalDetail}>
-                  {receiptModal.payment_method} · inviata il {formatDate(receiptModal.sent_at)}
+                <Text style={styles.modalSubtitle}>
+                  {receiptsForSelectedMonth.length === 0
+                    ? 'Nessuna ricevuta'
+                    : `${receiptsForSelectedMonth.length} ricevut${receiptsForSelectedMonth.length === 1 ? 'a' : 'e'}`}
                 </Text>
-                <Pressable
-                  style={styles.modalPrimaryButton}
-                  onPress={() => {
-                    openFile(receiptModal.url);
-                    setReceiptModal(null);
-                  }}
-                >
-                  <Text style={styles.modalPrimaryButtonText}>Apri ricevuta</Text>
-                </Pressable>
+
+                {receiptsForSelectedMonth.length === 0 ? (
+                  <Text style={styles.modalEmpty}>
+                    Nessuna ricevuta PDF disponibile per {formatMonthLabel(selectedMonth)} {selectedYear}.
+                  </Text>
+                ) : (
+                  receiptsForSelectedMonth.map((receipt) => (
+                    <View key={receipt.id} style={styles.receiptRow}>
+                      <View style={styles.receiptRowHeader}>
+                        <Text style={styles.receiptAmount}>{formatCurrency(receipt.amount)}</Text>
+                        {!!receipt.extra_amount && receipt.extra_amount > 0 && (
+                          <View style={styles.extraBadge}>
+                            <Text style={styles.extraBadgeText}>+ Extra</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.modalDetail}>{receipt.payment_method}</Text>
+                      <Text style={styles.modalDetail}>Inviata il {formatDateTime(receipt.sent_at)}</Text>
+                      {receipt.extra_note && <Text style={styles.modalDetail}>Nota: {receipt.extra_note}</Text>}
+                      <Pressable style={styles.modalPrimaryButton} onPress={() => openFile(receipt.url)}>
+                        <Text style={styles.modalPrimaryButtonText}>Apri ricevuta</Text>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
               </>
             )}
-            <Pressable style={styles.modalCloseButton} onPress={() => setReceiptModal(null)}>
+            <Pressable style={styles.modalCloseButton} onPress={() => setSelectedMonth(null)}>
               <Text style={styles.modalCloseButtonText}>Chiudi</Text>
             </Pressable>
           </View>
@@ -294,18 +293,15 @@ const styles = StyleSheet.create({
   yearButtonDisabled: { color: 'rgba(255,255,255,0.3)' },
   yearLabel: { fontSize: 13, fontWeight: '700', color: colors.textOnDark, minWidth: 32, textAlign: 'center' },
   row: { gap: 2, paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  paymentRowHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rowTitle: { fontSize: 14, fontWeight: '600', color: colors.text, textTransform: 'capitalize' },
   rowSubtitle: { fontSize: 12, color: colors.textMuted },
   seeAllLink: { fontSize: 13, color: colors.primary, fontWeight: '700', marginTop: 4 },
   warning: { fontSize: 12, color: colors.warning, fontWeight: '700' },
-  subHeading: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 8, textTransform: 'uppercase' },
+  subHeading: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginTop: 12, textTransform: 'uppercase' },
   pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12 },
   pillEmoji: { fontSize: 14 },
   pillLabel: { fontSize: 12, fontWeight: '700' },
-  receiptBadge: { backgroundColor: colors.purple, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  receiptBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   disciplineRow: { marginBottom: 4 },
   disciplineChip: {
     borderRadius: 16,
@@ -319,11 +315,18 @@ const styles = StyleSheet.create({
   disciplineChipTextActive: { color: '#fff' },
   kpiRow: { flexDirection: 'row', gap: 8 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  modalCard: { backgroundColor: colors.background, borderRadius: 16, padding: 20, width: '100%', gap: 8 },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
-  modalDetail: { fontSize: 14, color: colors.textMuted },
-  modalPrimaryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
-  modalPrimaryButtonText: { color: '#fff', fontWeight: '700' },
-  modalCloseButton: { paddingVertical: 10, alignItems: 'center' },
+  modalCard: { backgroundColor: colors.background, borderRadius: 16, padding: 20, width: '100%', gap: 4, maxHeight: '80%' },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text, textTransform: 'capitalize' },
+  modalSubtitle: { fontSize: 12, color: colors.textMuted, marginBottom: 8 },
+  modalEmpty: { fontSize: 13, color: colors.textMuted, paddingVertical: 8 },
+  modalDetail: { fontSize: 13, color: colors.textMuted },
+  receiptRow: { paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, gap: 2 },
+  receiptRowHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  receiptAmount: { fontSize: 15, fontWeight: '700', color: colors.text },
+  extraBadge: { backgroundColor: colors.purple, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  extraBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  modalPrimaryButton: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 10, alignItems: 'center', marginTop: 6 },
+  modalPrimaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  modalCloseButton: { paddingVertical: 10, alignItems: 'center', marginTop: 8 },
   modalCloseButtonText: { color: colors.textMuted, fontWeight: '600' },
 });

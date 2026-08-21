@@ -1,7 +1,7 @@
 # ADR — App Nativa iOS/Android per il Portale Atleta
 
 > **Progetto:** Corner Desk — Portale Atleta
-> **Versione:** 1.5
+> **Versione:** 1.9
 > **Data:** 2026-08-20
 > **Stato:** 🟢 In sviluppo — API completata, app React Native da costruire (progetto extra/corso)
 > **Autore:** Claude (AI Assistant), su richiesta
@@ -40,6 +40,39 @@
 > nota esplicita sulla **safe area** (notch/home indicator) — sempre `react-native-safe-area-context`,
 > mai padding fisso hardcoded; (4) corretta una frase non più valida su `document.url` (era già stato
 > aggiunto in v1.3, il testo diceva ancora "non esposto"). Mockup ripubblicato di conseguenza.
+>
+> **Changelog v1.5 → v1.6** (due errori reali segnalati dall'utente, non letti abbastanza a fondo nel
+> codice sorgente la prima volta): (1) **"Storico pagamenti" era completamente sbagliato** — il mockup
+> mostrava una lista di 2 righe pagamento con importo+metodo; il web reale (verificato leggendo
+> `dashboard.blade.php` per intero, non solo l'inizio della sezione) è una **griglia di 12 mesi** con
+> pallini colorati (verde/rosso/grigio), importo solo se pagato, badge ricevuta, legenda — pattern
+> completamente diverso, non una variazione minore. (2) **Colore del grafico "Le mie gare" sbagliato**:
+> il mockup usava il viola dell'header sezione; il vero grafico (Chart.js, `match-results-chart.js`) è
+> blu-grigio scuro `rgba(30,41,59,1)`. Aggiunta anche una nota tecnica che mancava: **Chart.js non gira
+> in React Native**, serve una libreria nativa equivalente configurata sugli stessi valori (colore,
+> `pointRadius: 5`, `tension: 0.1`) per un risultato visivamente simile, non identico "gratis". Mockup
+> ripubblicato con la griglia pagamenti corretta e il colore del grafico giusto.
+>
+> **Changelog v1.6 → v1.7**: la griglia mesi (§11.3 punto 4) non mostra date specifiche, solo
+> mese/anno — le date vere (`sent_at`, data di invio ricevuta) vivono un livello sotto, nel modale
+> ricevute aperto toccando un mese pagato. Descritto ora per la prima volta con i campi esatti
+> (`openReceiptModal()` sul web). Trovato un altro gap API nel farlo: `receipts[]` in `/dashboard`
+> non esponeva `extra_amount`/`extra_note` (mostrati sul web come badge "+ Extra"), aggiunti a
+> `PortalApiController::dashboard()`.
+>
+> **Changelog v1.7 → v1.8** (chiesto: "date degli incontri, sulla griglia [grafico]"): la descrizione
+> del grafico "Le mie gare" in v1.6/v1.7 era ancora incompleta, non solo il colore. Letto per intero
+> `match-results-chart.js`: l'**asse X sono le date reali di ogni incontro**, non decorativo; **i punti
+> sono colorati per esito** (verde vittoria/rosso sconfitta/grigio pareggio), non tutti come la linea;
+> c'è un tooltip al tocco con esito+punteggio+nome evento. Mockup e §11.3 aggiornati con tutti i
+> dettagli verificati, non solo il colore della linea corretto in v1.6.
+>
+> **Changelog v1.8 → v1.9** (priorità chiarita dall'utente: non i colori, ma date sul grafico +
+> fedeltà funzionale dello storico pagamenti alla PWA): trovato un altro campo tagliato via —
+> `receipts[].sent_at` in `/dashboard` restituiva solo la data (`Y-m-d`), il portale web mostra
+> **data e ora** (`d/m/Y H:i`) nel modale ricevute. Corretto in `PortalApiController::dashboard()`
+> (ora `toIso8601String()`, preserva l'orario). Documentato anche il caso limite "mese pagato ma
+> zero ricevute PDF" (messaggio dedicato sul web, da non silenziare in RN).
 
 ---
 
@@ -313,7 +346,7 @@ token dell'atleta, vedi 9.3).
   "enrollment_year": 2025,
   "enrollment_month": 9,
   "memberships": [{ "id": 1, "month": 8, "year": 2026, "amount_paid": 49.0, "paid_at": "2026-08-03" }],
-  "receipts": [{ "id": 1, "amount": 49.0, "payment_method": "Contanti", "month": 8, "year": 2026, "sent_at": "2026-08-03", "url": "/tenancy/assets/..." }],
+  "receipts": [{ "id": 1, "amount": 49.0, "payment_method": "Contanti", "month": 8, "year": 2026, "sent_at": "2026-08-03T14:32:00+02:00", "url": "/tenancy/assets/...", "extra_amount": null, "extra_note": null }],
   "extra_payments": [{ "id": 1, "amount": 20.0, "note": "Kimono", "payment_method": "POS", "paid_at": "2026-08-10" }],
   "documents": { "medical_certificate": { "id": 1, "type": "medical_certificate", "issued_at": "2026-01-10", "expires_at": "2027-01-10", "url": "/tenancy/assets/..." } },
   "match_chart_data": { "judo": { "label": "Judo", "total": 5, "wins": 3, "losses": 2, "win_rate": 60.0, "series": [...], "trend": [...] } },
@@ -407,15 +440,18 @@ in questo momento (nessun ambiente con DB raggiungibile per fare login e cattura
 
 ### 11.1 Palette e stile generale
 
-| Token                      | Valore                                                                                  | Uso                                                                                                                 |
-| -------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Blu navy scuro (gradiente) | `linear-gradient(135deg, #1a1a2e, #15215a)`                                             | Header pagina, header di ogni card-sezione, header modali                                                           |
-| Rosso brand                | `#dc3545`                                                                               | Accento principale (barrette laterali sezioni, icone gare/documenti, spinner login) — stesso rosso del manifest PWA |
-| Verde                      | `#22c55e`                                                                               | Avatar utente (iniziali), accento sezione "Storico pagamenti"                                                       |
-| Viola                      | `#6f42c1`                                                                               | Accento sezione "Le mie gare", icona login, bottone refresh flottante                                               |
-| Card                       | Bianco, `border-radius: 20px`, ombra soffusa `0 4px 20px rgba(0,0,0,.08)`, nessun bordo | Contenitore standard di ogni sezione                                                                                |
-| Font                       | `'Segoe UI', Arial, sans-serif`                                                         | —                                                                                                                   |
-| Layout                     | Colonna singola, larghezza massima ~760px, già mobile-first                             | Riflettere in RN come schermata verticale scrollabile, non un layout a griglia desktop                              |
+| Token                      | Valore                                                                                  | Uso                                                                                                                           |
+| -------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Blu navy scuro (gradiente) | `linear-gradient(135deg, #1a1a2e, #15215a)`                                             | Header pagina, header di ogni card-sezione, header modali                                                                     |
+| Rosso brand                | `#dc3545`                                                                               | Accento principale (barrette laterali sezioni, icone gare/documenti, spinner login) — stesso rosso del manifest PWA           |
+| Verde                      | `#22c55e`                                                                               | Avatar utente (iniziali), accento sezione "Storico pagamenti", pallino/importo mese pagato (griglia pagamenti, §11.3 punto 4) |
+| Viola                      | `#6f42c1`                                                                               | Accento sezione "Le mie gare", icona login. **Non** il colore del grafico (quello è blu-grigio scuro, vedi §11.3 punto 3)     |
+| Blu-grigio scuro           | `rgba(30,41,59,1)`                                                                      | Linea del grafico "Le mie gare" (Chart.js) — colore diverso dall'accento viola della sezione che lo contiene                  |
+| Gradiente viola-indaco     | `#667eea → #764ba2`                                                                     | Badge "ha ricevuta" nella griglia pagamenti (§11.3 punto 4)                                                                   |
+| Rosso pallino              | `#ef4444` (non `#dc3545`)                                                               | Pallino "non pagato" nella griglia pagamenti — leggermente diverso dal rosso brand, verificato nel CSS sorgente               |
+| Card                       | Bianco, `border-radius: 20px`, ombra soffusa `0 4px 20px rgba(0,0,0,.08)`, nessun bordo | Contenitore standard di ogni sezione                                                                                          |
+| Font                       | `'Segoe UI', Arial, sans-serif`                                                         | —                                                                                                                             |
+| Layout                     | Colonna singola, larghezza massima ~760px, già mobile-first                             | Riflettere in RN come schermata verticale scrollabile, non un layout a griglia desktop                                        |
 
 Pattern ricorrente in più sezioni: riga-elemento con icona colorata a sinistra, testo (titolo +
 sottotitolo grigio piccolo) al centro, dettaglio/icona a destra — usato per gare, pagamenti, ricevute.
@@ -456,12 +492,60 @@ corpo bianco):
    disciplina se più di una; 4 KPI a riquadro colorato (Totale/grigio, Vittorie/verde, Sconfitte/rosso,
    Win-rate/blu) più un grafico a linea dell'andamento cumulativo (vittoria +1/sconfitta -1/pareggio 0)
    → dati da `dashboard.match_chart_data` (già include `series`/`trend` pronti per un grafico, §9.4).
-4. **Storico pagamenti** (accento verde) — selettore anno; lista pagamenti del mese con importo e
-   metodo; badge violetto se il mese ha anche una ricevuta associata (apre modale ricevuta)
-   → dati da `dashboard.memberships` + `dashboard.receipts`.
+   **Il grafico è Chart.js 4.4.0** (`match-results-chart.js`, `type: "line"`), config reale — più
+   dettagliata di quanto scritto nella v1.6, verificata leggendo il file js per intero:
+   - Linea: `borderColor: rgba(30,41,59,1)` (blu-grigio scuro, **non** il viola dell'header sezione),
+     `backgroundColor: rgba(30,41,59,.08)` (fill sotto la linea), `tension: 0.1` (quasi dritta).
+   - **I punti sul grafico NON sono tutti dello stesso colore della linea** — sono colorati per esito
+     dell'incontro: vittoria `rgba(40,167,69,1)` verde, sconfitta `rgba(220,53,69,1)` rosso (= `#dc3545`
+     in RGB), pareggio `rgba(108,117,125,1)` grigio. `pointRadius: 5`.
+   - **L'asse X sono le date reali di ogni incontro** (`data.series[].date`, es. "2026-03-12"), non un
+     asse decorativo — con rotazione fino a 45° e `autoSkip` (Chart.js nasconde le etichette che non
+     ci stanno, non le stampa tutte sovrapposte).
+   - **Tooltip al passaggio/tocco** su un punto: `"{Vittoria|Sconfitta|Pareggio} → {punteggio con segno} — {nome evento}"`
+     (es. "Vittoria → +3 — Trofeo Regionale"). Su mobile il tap-to-reveal è l'equivalente nativo
+     dell'hover desktop — quasi tutte le librerie di grafici RN lo supportano.
+   - Legenda sopra il grafico: "Punteggio cumulativo".
 
-**Ricevute**: dettaglio/download di una singola ricevuta, aperta dalla riga corrispondente nello
-Storico pagamenti.
+   **Chart.js non gira in React Native** (usa `<canvas>` del browser, non disponibile in RN) — serve
+   una libreria di grafici nativa (es. `react-native-chart-kit`, `victory-native`,
+   `react-native-gifted-charts`) che consumi lo stesso `series`/`trend` e replichi **tutti** i punti
+   sopra (colore linea, colore punti per esito, etichette asse X con le date, tooltip al tocco), non
+   solo "una linea che sale e scende" — l'aspetto sarà simile se configurato apposta su ogni dettaglio,
+   non identico "gratis" con la config di default della libreria scelta.
+
+4. **Storico pagamenti** (accento verde) — **non** una lista di righe pagamento (correzione v1.6, il
+   mockup v1.5 la mostrava sbagliata): è una **griglia di 12 mesi** (Gen-Dic), 3 colonne su schermo
+   telefono (`grid-template-columns: repeat(3, 1fr)` sotto i 400px, verificato in
+   `resources/views/portal/dashboard.blade.php` — 6 colonne su desktop, non rilevante per l'app), un
+   riquadro arrotondato per mese con: etichetta mese abbreviata (Gen/Feb/...), un **pallino colorato
+   sotto**: verde con alone luminoso se pagato, rosso con alone se non pagato ed è un mese passato,
+   grigio spento se futuro o precedente alla data di iscrizione (mese non selezionabile in quel caso);
+   se pagato, sotto il pallino l'**importo** in verde (es. "€49"); se quel mese ha anche una ricevuta,
+   un badge pillola con gradiente viola (`#667eea → #764ba2`) e icona fattura + conteggio ricevute,
+   tap sul mese pagato apre il modale ricevuta. Sotto la griglia, una **legenda** a 3 voci (pallino +
+   etichetta): Pagato/verde, Non pagato/rosso, Futuro-Pre-iscrizione/grigio.
+   → dati da `dashboard.memberships` (uno per mese pagato) + `dashboard.receipts` (per il badge/conteggio
+   — la vecchia versione di questa voce menzionava anche il metodo di pagamento nella riga, ma il web
+   **non lo mostra** in questa sezione, solo l'importo).
+
+**Ricevute — le date ci sono, ma a un livello sotto la griglia**: la griglia mesi (punto 4) mostra solo
+`Mar`/`Ago`/ecc. — **nessuna data specifica lì**. Toccando un mese pagato si apre un modale/schermata di
+dettaglio (`openReceiptModal()` sul web) che mostra: header con mese+anno per esteso ("Agosto 2026") e
+totale ricevute di quel mese; poi, per ogni ricevuta di quel mese: importo, **data E ORA di invio**
+(sul web `receipt.sent_at` formattato `d/m/Y H:i`, es. "03/08/2026 14:32" — **non solo la data**,
+l'orario è un campo reale, verificato in `dashboard.blade.php` riga 976), etichetta metodo di pagamento
+(`payment_method_label()`, lo stesso helper visto nella conversazione sul fix WhatsApp/metodi
+pagamento), badge "+ Extra" con nota se `extra_amount > 0`, e un bottone/link per aprire il PDF
+(`receipt.url`). **Caso limite da gestire**: un mese può risultare "pagato" nella griglia (verde,
+importo mostrato) ma avere **zero ricevute PDF** associate (es. pagamento registrato manualmente senza
+generare ricevuta) — il web mostra in quel caso "Nessuna ricevuta PDF disponibile per {mese} {anno}",
+non una lista vuota silenziosa.
+
+Tutti questi campi sono già nella risposta di `/dashboard` per ogni voce di `receipts[]` (§9.4) —
+inclusi `extra_amount`/`extra_note` e ora anche l'**orario** in `sent_at` (prima tagliato via,
+formattava solo `Y-m-d`; ora `toIso8601String()`, l'app lo formatta come preferisce ma il dato
+dell'ora non si perde più).
 
 **Navigazione: tab bar in basso, non dropdown/modali** — sul web "Impostazioni profilo", "Cambia
 password" e "Esci" sono voci di un dropdown desktop; su mobile diventano una **tab bar fissa in fondo

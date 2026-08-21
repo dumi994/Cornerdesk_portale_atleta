@@ -17,6 +17,20 @@ export const colors = {
   error: '#dc3545',
   success: '#22c55e',
   warning: '#b8860b',
+
+  // Grafico "Le mie gare" (Chart.js match-results-chart.js, ADR §11.3 punto 3/v1.8) —
+  // colori verificati nel sorgente, DIVERSI dall'accento viola della sezione che lo contiene.
+  chartLine: 'rgba(30,41,59,1)',
+  chartFill: 'rgba(30,41,59,0.08)',
+  chartWin: 'rgba(40,167,69,1)',
+  chartLoss: 'rgba(220,53,69,1)',
+  chartDraw: 'rgba(108,117,125,1)',
+
+  // Griglia pagamenti a 12 mesi (ADR §11.3 punto 4/v1.6) — il rosso "non pagato" è
+  // leggermente diverso dal rosso brand (#dc3545), verificato nel CSS sorgente.
+  unpaidDot: '#ef4444',
+  receiptBadgeGradientStart: '#667eea',
+  receiptBadgeGradientEnd: '#764ba2',
 };
 
 // Colori/icone per tipo di documento (ADR §11.3.1) — badge cliccabili nella card "I tuoi documenti".
