@@ -61,3 +61,19 @@ export function fetchUnreadCount(host: string, token: string) {
 export function markNotificationRead(host: string, token: string, id: number) {
   return apiFetch<{ item: NotificationItem }>(host, `/notifications/${id}/read`, { method: 'POST', token });
 }
+
+export function registerPushToken(host: string, token: string, expoPushToken: string, deviceName?: string) {
+  return apiFetch<{ message: string }>(host, '/push-tokens', {
+    method: 'POST',
+    token,
+    body: { token: expoPushToken, device_name: deviceName },
+  });
+}
+
+export function unregisterPushToken(host: string, token: string, expoPushToken: string) {
+  return apiFetch<{ message: string }>(host, '/push-tokens', {
+    method: 'DELETE',
+    token,
+    body: { token: expoPushToken },
+  });
+}

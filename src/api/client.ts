@@ -87,7 +87,7 @@ export async function clearLastTenant(): Promise<void> {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST';
+  method?: 'GET' | 'POST' | 'DELETE';
   body?: Record<string, unknown>;
   query?: Record<string, string | number | undefined>;
   token?: string | null;

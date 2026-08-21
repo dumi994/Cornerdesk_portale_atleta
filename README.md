@@ -27,8 +27,16 @@ personalizzato" e inserisci l'host completo (es. `http://192.168.1.10:8000`).
   raggiungibile (stesso limite che l'ADR segnala per l'API stessa, §9.6): verificata con
   `npx tsc --noEmit` e bundling (`npx expo export`), non con un login reale. Prima di un uso vero,
   serve una passata manuale contro un tenant reale.
-- **Nessuna notifica push nativa** (APNs/FCM) — fuori scope (ADR §7/§8). Il centro notifiche si
-  aggiorna via polling ogni 30s mentre l'app è in foreground.
+- **Notifiche push native**: implementate via Expo Push API (canale parallelo al Web Push della PWA,
+  vedi `ExpoPushNotificationService` nel backend). Il centro notifiche in-app continua comunque ad
+  aggiornarsi via polling ogni 30s mentre l'app è in foreground, indipendentemente dalla push.
+  - **Android**: richiede un progetto Firebase (FCM) con le credenziali caricate su EAS
+    (`eas credentials`) — funziona solo su build reali (APK/EAS), non dentro Expo Go: da **Expo SDK
+    53 le push remote non sono più supportate in Expo Go su Android**.
+  - **iOS**: richiede una chiave APNs (.p8), generabile solo con un account Apple Developer Program
+    a pagamento — stesso vincolo già discusso per la distribuzione (§10.2). Il Simulatore Xcode non
+    può comunque mai ricevere push reali (limite Apple), quindi su iOS le push sono testabili solo
+    su un device fisico con build firmata.
 - **Nessun upload documenti/certificato medico** e **nessuna generazione pagamenti Stripe da
   mobile** — l'API attuale copre solo lettura (ADR §9.5).
 - **Dentro Expo Go l'app non ha icona/nome proprio** sulla home screen (limite di Apple su iOS, non

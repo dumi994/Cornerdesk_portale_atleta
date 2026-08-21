@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 
 import {
@@ -93,6 +95,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const logout = useCallback(async () => {
     if (host && token) {
+      try {
+        // Best-effort: rimuove anche il token push Expo di questo device,
+        // se permessi/token sono ancora ottenibili (non bloccante altrimenti).
+        const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
+        const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+        await portalApi.unregisterPushToken(host, token, expoPushToken);
+      } catch {
+        // ignorato volutamente: nessun permesso/token disponibile, o rete assente.
+      }
       try {
         // Revoca solo il token di questo device (ADR §9.2) — se la richiesta
         // fallisce (rete assente) il device viene comunque disconnesso in locale.
