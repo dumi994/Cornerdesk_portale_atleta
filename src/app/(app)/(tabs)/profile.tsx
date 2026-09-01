@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ApiError } from '@/api/client';
 import { fetchMe, updatePassword } from '@/api/portal';
@@ -7,8 +7,19 @@ import { Card } from '@/components/Card';
 import { PageHeader } from '@/components/PageHeader';
 import { colors } from '@/constants/colors';
 import { useAuth } from '@/context/AuthContext';
+import { usePushNotificationsStatus, type PushRegistrationStatus } from '@/context/PushNotificationsContext';
 import type { StudentProfile } from '@/types/portal';
 import { formatDate } from '@/utils/format';
+
+const PUSH_STATUS_LABELS: Record<PushRegistrationStatus, string> = {
+  idle: 'In attesa',
+  'requesting-permission': 'Richiesta permesso in corso...',
+  'permission-denied': 'Permesso negato — le notifiche push non arriveranno su questo device',
+  'fetching-token': 'Recupero token in corso...',
+  registering: 'Registrazione sul server in corso...',
+  registered: 'Attive su questo device ✓',
+  error: 'Errore',
+};
 
 export default function ProfileScreen() {
   const { host, token, logout } = useAuth();
@@ -72,6 +83,8 @@ export default function ProfileScreen() {
     }
   }
 
+  const pushStatus = usePushNotificationsStatus();
+
   function handleLogout() {
     Alert.alert('Esci', 'Vuoi disconnettere questo device dal Portale Atleta?', [
       { text: 'Annulla', style: 'cancel' },
@@ -104,6 +117,14 @@ export default function ProfileScreen() {
           {profile.primary_course && <Text style={styles.detail}>Corso principale: {profile.primary_course.title}</Text>}
         </Card>
       )}
+
+      <Card title="Notifiche push">
+        <Text style={pushStatus.status === 'error' ? styles.error : styles.detail}>
+          {PUSH_STATUS_LABELS[pushStatus.status]}
+        </Text>
+        {pushStatus.errorMessage && <Text style={styles.error}>{pushStatus.errorMessage}</Text>}
+        {pushStatus.tokenPreview && <Text style={styles.pushTokenPreview}>Token: {pushStatus.tokenPreview}</Text>}
+      </Card>
 
       <Card title="Cambia password">
         <View style={styles.field}>
@@ -152,6 +173,7 @@ const styles = StyleSheet.create({
   success: { color: colors.success, fontSize: 13, textAlign: 'center' },
   name: { fontSize: 18, fontWeight: '700', color: colors.text },
   detail: { fontSize: 13, color: colors.textMuted },
+  pushTokenPreview: { fontSize: 11, color: colors.textMuted, fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }) },
   field: { gap: 4 },
   label: { fontSize: 13, color: colors.text, fontWeight: '600' },
   input: {
