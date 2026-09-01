@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "125930944266",
+    "project_id": "corner-desk-app",
+    "storage_bucket": "corner-desk-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:125930944266:android:53c702f145b95378812cf3",
+        "android_client_info": {
+          "package_name": "it.cornerdesk.portaleatleta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAf4KF7cEQINwZkGIxZ-ITmSeqT5JvRzXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
