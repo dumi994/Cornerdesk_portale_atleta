@@ -3,11 +3,10 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
 import { NotificationsProvider } from '@/context/NotificationsContext';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { PushNotificationsProvider } from '@/context/PushNotificationsContext';
 
 export default function AppGroupLayout() {
   const { status } = useAuth();
-  usePushNotifications();
 
   if (status === 'loading') {
     return (
@@ -23,7 +22,9 @@ export default function AppGroupLayout() {
 
   return (
     <NotificationsProvider>
-      <Slot />
+      <PushNotificationsProvider>
+        <Slot />
+      </PushNotificationsProvider>
     </NotificationsProvider>
   );
 }
